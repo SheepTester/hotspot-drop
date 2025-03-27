@@ -19,24 +19,12 @@ use tokio_util::io::ReaderStream;
 async fn handle_request(
     req: Request<hyper::body::Incoming>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, Box<dyn Error + Send + Sync>> {
-    match req.method() {
-        &Method::GET => {}
-        _ => {
-            return Ok(Response::builder()
-                .status(StatusCode::METHOD_NOT_ALLOWED)
-                .body(
-                    Full::new(Bytes::from("405 Method Not Allowed :("))
-                        .map_err(|e| match e {})
-                        .boxed(),
-                )?);
-        }
-    }
     let path = req.uri().path();
     let url_decoded = format!(".{}", urlencoding::decode(path)?);
-    let cwd = env::current_dir()?;
+    let cwd = env::current_dir()?.canonicalize()?;
     let filename = cwd.join(&url_decoded).canonicalize()?;
     println!("R {}", filename.to_str().unwrap_or(""));
-    if !filename.starts_with(cwd.canonicalize()?) {
+    if !filename.starts_with(cwd.clone()) {
         return Ok(Response::builder()
             .status(StatusCode::UNPROCESSABLE_ENTITY)
             .body(
@@ -55,21 +43,92 @@ async fn handle_request(
         )?);
     };
     if metadata.is_dir() {
+        match req.method() {
+            &Method::GET => {}
+            _ => {
+                return Ok(Response::builder()
+                    .status(StatusCode::METHOD_NOT_ALLOWED)
+                    .body(
+                        Full::new(Bytes::from("405 Method Not Allowed :("))
+                            .map_err(|e| match e {})
+                            .boxed(),
+                    )?);
+            }
+        }
+
+        if !path.ends_with("/") {
+            return Ok(Response::builder()
+                .status(301)
+                .header("Location", format!("{}/", path))
+                .body(
+                    Full::new(Bytes::from("Redirecting to directory listing..."))
+                        .map_err(|e| match e {})
+                        .boxed(),
+                )?);
+        }
         let mut paths = vec![];
-        let mut entries = fs::read_dir(filename).await?;
+        let mut entries = fs::read_dir(filename.clone()).await?;
         while let Some(entry) = entries.next_entry().await? {
             match entry.file_name().into_string() {
-                Ok(name) => paths.push(name),
+                Ok(name) => paths.push((name, entry.metadata().await?)),
                 Err(name) => eprintln!("Failed to decode '{name:?}'"),
             }
         }
-        paths.sort();
+        paths.sort_by(|a, b| {
+            a.1.is_file()
+                .cmp(&b.1.is_file())
+                .then_with(|| a.0.cmp(&b.0))
+        });
         Ok(Response::builder().status(StatusCode::OK).body(
-            Full::new(format!("hello:\n{}", paths.join(", ")).into())
-                .map_err(|e| match e {})
-                .boxed(),
+            Full::new(
+                include_str!("./index.html")
+                    .replace("{PATH}", &{
+                        let mut path = filename.strip_prefix(cwd)?.to_string_lossy().into_owned();
+                        if !path.starts_with('/') {
+                            path.insert(0, '/');
+                        }
+                        if !path.ends_with('/') {
+                            path.push('/');
+                        }
+                        path
+                    })
+                    .replace(
+                        "{LIST}",
+                        &paths
+                            .iter()
+                            .map(|(name, metadata)| {
+                                if metadata.is_dir() {
+                                    format!(
+                                        r#"<li><a href="{name}/"><span class="folder">Folder</span> {name}/</a></li>"#,
+                                    )
+                                } else {
+                                    format!(
+                                        r#"<li><a href="{name}"><span class="file">File</span> {name}</a> <a href="{name}" download class="download">Download {name}</a></li>"#,
+                                    )
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(""),
+                    )
+                    .into(),
+            )
+            .map_err(|e| match e {})
+            .boxed(),
         )?)
     } else {
+        match req.method() {
+            &Method::GET => {}
+            _ => {
+                return Ok(Response::builder()
+                    .status(StatusCode::METHOD_NOT_ALLOWED)
+                    .body(
+                        Full::new(Bytes::from("405 Method Not Allowed :("))
+                            .map_err(|e| match e {})
+                            .boxed(),
+                    )?);
+            }
+        }
+
         let file = File::open(filename.clone()).await?;
         let reader_stream = ReaderStream::new(file);
         let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
