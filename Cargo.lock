@@ -193,7 +193,6 @@ dependencies = [
  "mime_guess",
  "multer",
  "network-interface",
- "once_cell",
  "tokio",
  "tokio-util",
  "urlencoding",

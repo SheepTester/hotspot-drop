@@ -17,7 +17,6 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use once_cell::sync::Lazy;
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -152,7 +151,7 @@ async fn handle_request(
             }
             path
         };
-        let folder_listing = paths
+        let mut folder_listing = paths
             .iter()
             .map(|(name, metadata)| {
                 if metadata.is_dir() {
@@ -169,12 +168,26 @@ async fn handle_request(
             })
             .collect::<Vec<_>>()
             .join("");
+        if !is_root {
+            folder_listing = format!(
+                r#"<li><a href="../"><span class="spacer">Parent folder</span> ../</a></li>{folder_listing}"#
+            );
+        }
         let mut svg = SvgBuilder::default();
         svg.background_color("transparent");
         svg.module_color("currentColor");
         let qr_codes = if is_root {
-            (*URLS)
+            NetworkInterface::show()
+                .unwrap()
                 .iter()
+                .flat_map(|itf| itf.addr.iter())
+                .filter_map(|addr| {
+                    if let Addr::V4(addr) = addr {
+                        Some(format!("http://{}:{PORT}", addr.ip))
+                    } else {
+                        None
+                    }
+                })
                 .map(|url| {
                     let qrcode = QRBuilder::new(url.as_str()).build().unwrap();
                     format!(
@@ -231,23 +244,15 @@ async fn handle_request(
 
 const PORT: u16 = 6969;
 
-static URLS: Lazy<Vec<String>> = Lazy::new(|| {
-    let mut ips = vec![];
-    for itf in NetworkInterface::show().unwrap().iter() {
-        for addr in &itf.addr {
-            if let Addr::V4(addr) = addr {
-                ips.push(format!("http://{}:{PORT}", addr.ip));
-            }
-        }
-    }
-    ips
-});
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], PORT));
-    for url in &*URLS {
-        println!("{url}");
+    for itf in NetworkInterface::show().unwrap().iter() {
+        for addr in &itf.addr {
+            if let Addr::V4(addr) = addr {
+                println!("http://{}:{PORT}", addr.ip);
+            }
+        }
     }
 
     // We create a TcpListener and bind it to 127.0.0.1:3000
