@@ -2,6 +2,9 @@ use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
 
+use fast_qr::QRBuilder;
+use fast_qr::convert::Builder;
+use fast_qr::convert::svg::SvgBuilder;
 use futures_util::{StreamExt, TryStreamExt};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, BodyStream};
@@ -14,6 +17,7 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+use once_cell::sync::Lazy;
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -59,6 +63,7 @@ async fn handle_request(
         )?);
     };
     if metadata.is_dir() {
+        let is_root = path == "/";
         let path_ends_with_slash = if path.ends_with('/') {
             None
         } else {
@@ -137,39 +142,57 @@ async fn handle_request(
                 .cmp(&b.1.is_file())
                 .then_with(|| a.0.cmp(&b.0))
         });
+        let folder_path = {
+            let mut path = filename.strip_prefix(cwd)?.to_string_lossy().into_owned();
+            if !path.starts_with('/') {
+                path.insert(0, '/');
+            }
+            if !path.ends_with('/') {
+                path.push('/');
+            }
+            path
+        };
+        let folder_listing = paths
+            .iter()
+            .map(|(name, metadata)| {
+                if metadata.is_dir() {
+                    format!(
+                        r#"<li><a href="{0}/"><span class="folder">Folder</span> {0}/</a></li>"#,
+                        escape_html(name)
+                    )
+                } else {
+                    format!(
+                        r#"<li><a href="{0}"><span class="file">File</span> {0}</a> <a href="{0}" download class="download">Download {0}</a></li>"#,
+                        escape_html(name)
+                    )
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        let mut svg = SvgBuilder::default();
+        svg.background_color("transparent");
+        svg.module_color("currentColor");
+        let qr_codes = if is_root {
+            (*URLS)
+                .iter()
+                .map(|url| {
+                    let qrcode = QRBuilder::new(url.as_str()).build().unwrap();
+                    format!(
+                        r#"<div class="qr-code">{}<a href="{url}">{url}</a></div>"#,
+                        svg.to_str(&qrcode),
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("")
+        } else {
+            String::new()
+        };
         Ok(Response::builder().status(StatusCode::OK).body(
             Full::new(
                 include_str!("./index.html")
-                    .replace("{PATH}", &{
-                        let mut path = filename.strip_prefix(cwd)?.to_string_lossy().into_owned();
-                        if !path.starts_with('/') {
-                            path.insert(0, '/');
-                        }
-                        if !path.ends_with('/') {
-                            path.push('/');
-                        }
-                        path
-                    })
-                    .replace(
-                        "{LIST}",
-                        &paths
-                            .iter()
-                            .map(|(name, metadata)| {
-                                if metadata.is_dir() {
-                                    format!(
-                                        r#"<li><a href="{0}/"><span class="folder">Folder</span> {0}/</a></li>"#,
-                                        escape_html(name)
-                                    )
-                                } else {
-                                    format!(
-                                        r#"<li><a href="{0}"><span class="file">File</span> {0}</a> <a href="{0}" download class="download">Download {0}</a></li>"#,
-                                        escape_html(name)
-                                    )
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join(""),
-                    )
+                    .replace("{PATH}", &folder_path)
+                    .replace("{LIST}", &folder_listing)
+                    .replace("{QR}", &qr_codes)
                     .into(),
             )
             .map_err(|e| match e {})
@@ -206,17 +229,25 @@ async fn handle_request(
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let port = 6969;
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+const PORT: u16 = 6969;
 
+static URLS: Lazy<Vec<String>> = Lazy::new(|| {
+    let mut ips = vec![];
     for itf in NetworkInterface::show().unwrap().iter() {
         for addr in &itf.addr {
             if let Addr::V4(addr) = addr {
-                println!("http://{}:{port}", addr.ip);
+                ips.push(format!("http://{}:{PORT}", addr.ip));
             }
         }
+    }
+    ips
+});
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let addr = SocketAddr::from(([0, 0, 0, 0], PORT));
+    for url in &*URLS {
+        println!("{url}");
     }
 
     // We create a TcpListener and bind it to 127.0.0.1:3000

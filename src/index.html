@@ -107,6 +107,17 @@
         width: 100%;
         height: 100%;
       }
+
+      .qr-codes {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        font-size: 0.7em;
+        text-align: center;
+      }
+      .qr-code {
+        display: flex;
+        flex-direction: column;
+      }
     </style>
   </head>
   <body>
@@ -121,5 +132,6 @@
       </label>
       <button type="submit">Upload</button>
     </form>
+    <div class="qr-codes">{QR}</div>
   </body>
 </html>

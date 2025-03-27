@@ -19,3 +19,4 @@ Prerequisites: For Android, I recommend installing [Termux](https://termux.dev/)
     It will serve the files in the current directory.
 
     The binary will spit out a list of URLs; hopefully, one of them works. One of the IPs should be accessible from the other device too.
+    QR codes for the URLs are also displayed on directory pages.

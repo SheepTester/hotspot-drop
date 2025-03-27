@@ -87,6 +87,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "fast_qr"
+version = "0.12.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16e326670ab63ef13c7699301dbb3441573ba3288e83c3bb9efaacc91a33fd01"
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -179,6 +185,7 @@ checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 name = "hotspot-drop"
 version = "0.1.1"
 dependencies = [
+ "fast_qr",
  "futures-util",
  "http-body-util",
  "hyper",
@@ -186,6 +193,7 @@ dependencies = [
  "mime_guess",
  "multer",
  "network-interface",
+ "once_cell",
  "tokio",
  "tokio-util",
  "urlencoding",
