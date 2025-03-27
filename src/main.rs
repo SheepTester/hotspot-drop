@@ -2,17 +2,20 @@ use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
 
-use futures_util::TryStreamExt;
-use http_body_util::BodyExt;
+use futures_util::{StreamExt, TryStreamExt};
 use http_body_util::combinators::BoxBody;
+use http_body_util::{BodyExt, BodyStream};
 use http_body_util::{Full, StreamBody};
 use hyper::body::{Bytes, Frame};
+use hyper::header::CONTENT_TYPE;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use tokio::fs::{self, File};
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio_util::io::ReaderStream;
 
@@ -43,8 +46,50 @@ async fn handle_request(
         )?);
     };
     if metadata.is_dir() {
+        let path_ends_with_slash = if path.ends_with("/") {
+            None
+        } else {
+            Some(format!("{}/", path))
+        };
         match req.method() {
             &Method::GET => {}
+            &Method::POST => {
+                // https://github.com/rwf2/multer/blob/master/examples/hyper_server_example.rs
+                let Some(boundary) = req
+                    .headers()
+                    .get(CONTENT_TYPE)
+                    .and_then(|ct| ct.to_str().ok())
+                    .and_then(|ct| multer::parse_boundary(ct).ok())
+                else {
+                    return Ok(Response::builder().status(StatusCode::BAD_REQUEST).body(
+                        Full::from("400 Bad Request: missing multipart boundary >:(")
+                            .map_err(|e| match e {})
+                            .boxed(),
+                    )?);
+                };
+                let body_stream =
+                    BodyStream::new(req.into_body()).filter_map(|result| async move {
+                        result.map(|frame| frame.into_data().ok()).transpose()
+                    });
+                let mut multipart = Multipart::new(body_stream, boundary);
+                while let Some(mut field) = multipart.next_field().await? {
+                    let Some("file") = field.name() else {
+                        continue;
+                    };
+                    let file_name = field
+                        .file_name()
+                        .unwrap_or("unnamed file uploaded with hotspot drop");
+                    let path = format!("{}/{file_name}", filename.to_string_lossy());
+                    let mut file = File::create(path.clone()).await?;
+
+                    let mut field_bytes_len = 0;
+                    while let Some(field_chunk) = field.chunk().await? {
+                        file.write_all(&field_chunk).await?;
+                        field_bytes_len += field_chunk.len();
+                    }
+                    println!("W {path} ({:?} bytes)", field_bytes_len);
+                }
+            }
             _ => {
                 return Ok(Response::builder()
                     .status(StatusCode::METHOD_NOT_ALLOWED)
@@ -56,10 +101,10 @@ async fn handle_request(
             }
         }
 
-        if !path.ends_with("/") {
+        if let Some(new_path) = path_ends_with_slash {
             return Ok(Response::builder()
                 .status(301)
-                .header("Location", format!("{}/", path))
+                .header("Location", format!("{}/", new_path))
                 .body(
                     Full::new(Bytes::from("Redirecting to directory listing..."))
                         .map_err(|e| match e {})
@@ -132,7 +177,7 @@ async fn handle_request(
         let file = File::open(filename.clone()).await?;
         let reader_stream = ReaderStream::new(file);
         let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-        let boxed_body = stream_body.boxed();
+        let boxed_body = BodyExt::boxed(stream_body);
         Ok(Response::builder()
             .status(StatusCode::OK)
             .header(

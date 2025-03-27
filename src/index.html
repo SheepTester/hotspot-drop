@@ -114,9 +114,10 @@
     <ul class="files">
       {LIST}
     </ul>
-    <form action="." method="POST">
+    <form action="." method="POST" enctype="multipart/form-data">
       <label class="drop-area">
-        Drop files here or click to select <input type="file" name="file" />
+        Drop files here or click to select
+        <input type="file" name="file" multiple required />
       </label>
       <button type="submit">Upload</button>
     </form>
