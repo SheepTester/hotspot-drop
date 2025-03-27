@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: cargo-bins/cargo-binstall@main
       - name: Build
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+          cargo binstall cross
 
           mkdir -p output
 
