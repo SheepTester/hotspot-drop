@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build:
@@ -35,6 +36,8 @@ jobs:
             fi
             mv "target/$target/release/hotspot-drop$ext" "output/hotspot-drop-$target$ext"
           done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
