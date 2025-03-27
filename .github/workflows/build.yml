@@ -11,36 +11,29 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build
         run: |
-          cargo build --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}
-          path: target/release/hotspot-drop*
+          mkdir -p output
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-      - name: Produce output
-        run: |
-          mkdir output
-          for dir in build-*
-          do
-            for file in $dir/hotspot-drop*
-            do
-              mv $dir/$file output/$dir_$file
-            done
+          targets=(
+            "x86_64-pc-windows-msvc"
+            "x86_64-unknown-linux-gnu"
+            "aarch64-unknown-linux-gnu"
+          )
+          for target in "${targets[@]}"; do
+            echo "Installing target: $target"
+            rustup target add "$target"
+
+            cargo build --release --target "$target"
+
+            ext=""
+            if [[ "$target" == *"windows-msvc" ]]; then
+              ext=".exe"
+            fi
+            mv "target/$target/release/hotspot-drop$ext" "output/hotspot-drop-$target$ext"
           done
       - name: Release
         uses: softprops/action-gh-release@v2
