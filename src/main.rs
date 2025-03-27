@@ -70,12 +70,19 @@ async fn handle_request(
                 .boxed(),
         )?)
     } else {
-        let file = File::open(filename).await?;
+        let file = File::open(filename.clone()).await?;
         let reader_stream = ReaderStream::new(file);
         let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
         let boxed_body = stream_body.boxed();
         Ok(Response::builder()
             .status(StatusCode::OK)
+            .header(
+                "Content-Type",
+                mime_guess::from_path(filename).first().map_or_else(
+                    || String::from("application/octet-stream"),
+                    |mime| mime.to_string(),
+                ),
+            )
             .body(boxed_body)?)
     }
 }
