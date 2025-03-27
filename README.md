@@ -8,15 +8,25 @@ I sometimes want to share files between devices, but Nearby/Quick Share doesn't 
 Prerequisites: For Android, I recommend installing [Termux](https://termux.dev/).
 
 1.  Download and run the appropriate binary from the [Releases page](https://github.com/SheepTester/hotspot-drop/releases).
-    On Linux, you can use `uname -m` to determine your architecture.
+
+    > [!TIP]
+    >
+    > On Linux, you can use `uname -m` to determine your architecture.
 
     I'm only building binaries for Windows and Android because neither support AirDrop and both can host a hotspot.
+
+    > [!NOTE]
+    >
+    > WSL2 ports aren't accessible by other devices. If you're on Windows, download the Windows executable; don't use WSL.
 
 2.  Open a hotspot on one device, and connect to the hotspot on the other device.
 
 3.  Run the binary, either from the command line or double-clicking it in File Explorer.
-    On Windows, make sure to allow access to private networks.
     It will serve the files in the current directory.
+
+    > [!WARNING]
+    >
+    > On Windows, make sure to allow access to private networks.
 
     The binary will spit out a list of URLs; hopefully, one of them works. One of the IPs should be accessible from the other device too.
     QR codes for the URLs are also displayed on directory pages.
