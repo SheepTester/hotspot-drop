@@ -19,13 +19,26 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio_util::io::ReaderStream;
 
+fn escape_html(text: &str) -> String {
+    text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+}
+
 async fn handle_request(
     req: Request<hyper::body::Incoming>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, Box<dyn Error + Send + Sync>> {
     let path = req.uri().path();
     let url_decoded = format!(".{}", urlencoding::decode(path)?);
     let cwd = env::current_dir()?.canonicalize()?;
-    let filename = cwd.join(&url_decoded).canonicalize()?;
+    let Ok(filename) = cwd.join(&url_decoded).canonicalize() else {
+        return Ok(Response::builder().status(StatusCode::NOT_FOUND).body(
+            Full::new(Bytes::from("404 Not Found :("))
+                .map_err(|e| match e {})
+                .boxed(),
+        )?);
+    };
     println!("R {}", filename.to_str().unwrap_or(""));
     if !filename.starts_with(cwd.clone()) {
         return Ok(Response::builder()
@@ -46,7 +59,7 @@ async fn handle_request(
         )?);
     };
     if metadata.is_dir() {
-        let path_ends_with_slash = if path.ends_with("/") {
+        let path_ends_with_slash = if path.ends_with('/') {
             None
         } else {
             Some(format!("{}/", path))
@@ -104,7 +117,7 @@ async fn handle_request(
         if let Some(new_path) = path_ends_with_slash {
             return Ok(Response::builder()
                 .status(301)
-                .header("Location", format!("{}/", new_path))
+                .header("Location", new_path)
                 .body(
                     Full::new(Bytes::from("Redirecting to directory listing..."))
                         .map_err(|e| match e {})
@@ -144,11 +157,13 @@ async fn handle_request(
                             .map(|(name, metadata)| {
                                 if metadata.is_dir() {
                                     format!(
-                                        r#"<li><a href="{name}/"><span class="folder">Folder</span> {name}/</a></li>"#,
+                                        r#"<li><a href="{0}/"><span class="folder">Folder</span> {0}/</a></li>"#,
+                                        escape_html(name)
                                     )
                                 } else {
                                     format!(
-                                        r#"<li><a href="{name}"><span class="file">File</span> {name}</a> <a href="{name}" download class="download">Download {name}</a></li>"#,
+                                        r#"<li><a href="{0}"><span class="file">File</span> {0}</a> <a href="{0}" download class="download">Download {0}</a></li>"#,
+                                        escape_html(name)
                                     )
                                 }
                             })
