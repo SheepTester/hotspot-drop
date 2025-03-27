@@ -22,8 +22,8 @@ jobs:
           cargo build --release
       - uses: actions/upload-artifact@v4
         with:
-          name: hotspot-drop-${{ matrix.os }}
-          path: target/release/hotspot-drop
+          name: ${{ matrix.os }}
+          path: target/release/hotspot-drop*
 
   release:
     needs: build
@@ -32,10 +32,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-      - name: Display structure of downloaded files
-        run: ls -R
+      - name: Produce output
+        run: |
+          mkdir output
+          for dir in build-*
+          do
+            for file in $dir/hotspot-drop*
+            do
+              mv $dir/$file output/$dir_$file
+            done
+          done
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           body: new release yay
-          files: hotspot-drop-*/*
+          files: output/*
