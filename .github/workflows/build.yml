@@ -20,16 +20,24 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Build
         run: |
+          echo "$ cargo binstall cross"
           cargo binstall cross
 
           // https://github.com/cross-rs/cross-toolchains/issues/38#issuecomment-2211963318
           // ???
+          echo "$ git clone https://github.com/cross-rs/cross"
           git clone https://github.com/cross-rs/cross
+          echo "$ cd cross"
           cd cross
+          echo "$ git submodule update --init --remote"
           git submodule update --init --remote
+          echo "$ cargo xtask configure-crosstool x86_64-pc-windows-msvc"
           cargo xtask configure-crosstool x86_64-pc-windows-msvc
+          echo "$ cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local"
           cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local
+          echo "$ rustup target add x86_64-pc-windows-msvc"
           rustup target add x86_64-pc-windows-msvc
+          echo "phew!"
 
           mkdir -p output
 
