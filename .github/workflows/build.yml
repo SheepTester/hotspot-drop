@@ -23,8 +23,8 @@ jobs:
           echo "$ cargo binstall cross"
           cargo binstall cross
 
-          // https://github.com/cross-rs/cross-toolchains/issues/38#issuecomment-2211963318
-          // ???
+          # https://github.com/cross-rs/cross-toolchains/issues/38#issuecomment-2211963318
+          # ???
           echo "$ git clone https://github.com/cross-rs/cross"
           git clone https://github.com/cross-rs/cross
           echo "$ cd cross"
