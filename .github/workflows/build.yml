@@ -11,54 +11,53 @@ permissions:
   packages: read
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: cargo-bins/cargo-binstall@main
-      - name: Log in to registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Build
         run: |
-          echo "$ cargo binstall cross"
           cargo binstall cross
-
-          # https://github.com/cross-rs/cross-toolchains/issues/38#issuecomment-2211963318
-          # ???
-          echo "$ git clone https://github.com/cross-rs/cross"
-          git clone https://github.com/cross-rs/cross
-          echo "$ cd cross"
-          cd cross
-          echo "$ git submodule update --init --remote"
-          git submodule update --init --remote
-          echo "$ cargo xtask configure-crosstool"
-          cargo xtask configure-crosstool
-          echo "$ cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local"
-          cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local
-          echo "$ rustup target add x86_64-pc-windows-msvc"
-          rustup target add x86_64-pc-windows-msvc
-          echo "$ cd .."
-          cd ..
-          echo "phew!"
-
           mkdir -p output
 
           targets=(
-            "x86_64-pc-windows-msvc"
             "x86_64-unknown-linux-gnu"
             "aarch64-unknown-linux-gnu"
           )
           for target in "${targets[@]}"; do
             cross build --release --target "$target"
-
-            ext=""
-            if [[ "$target" == *"windows-msvc" ]]; then
-              ext=".exe"
-            fi
-            mv "target/$target/release/hotspot-drop$ext" "output/hotspot-drop-$target$ext"
+            mv "target/$target/release/hotspot-drop" "output/hotspot-drop-$target"
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: output/*
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: target/release/hotspot-drop.exe
+  release:
+    needs:
+      - build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+      - name: Produce output
+        run: |
+          ls -R
+          mkdir output
+          mv windows/hotspot-drop.exe output/hotspot-drop-x86_64-pc-windows-msvc.exe
+          mv linux/* output/
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
