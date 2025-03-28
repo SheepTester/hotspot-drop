@@ -1,7 +1,7 @@
 [package]
 name = "hotspot-drop"
 version = "0.1.11"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 hyper = { version = "1", features = ["full"] }

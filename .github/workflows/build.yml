@@ -22,6 +22,8 @@ jobs:
           rustup default 1.67.0
 
           cargo binstall cross
+          echo "CROSS VERSION!!"
+          cross --version
           mkdir -p output
 
           targets=(
