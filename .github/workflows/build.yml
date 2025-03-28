@@ -31,12 +31,14 @@ jobs:
           cd cross
           echo "$ git submodule update --init --remote"
           git submodule update --init --remote
-          echo "$ cargo xtask configure-crosstool x86_64-pc-windows-msvc"
-          cargo xtask configure-crosstool x86_64-pc-windows-msvc
+          echo "$ cargo xtask configure-crosstool"
+          cargo xtask configure-crosstool
           echo "$ cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local"
           cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local
           echo "$ rustup target add x86_64-pc-windows-msvc"
           rustup target add x86_64-pc-windows-msvc
+          echo "$ cd .."
+          cd ..
           echo "phew!"
 
           mkdir -p output
