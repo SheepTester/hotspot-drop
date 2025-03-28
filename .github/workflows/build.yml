@@ -18,6 +18,9 @@ jobs:
       - uses: cargo-bins/cargo-binstall@main
       - name: Build
         run: |
+          # https://github.com/cross-rs/cross/issues/1222#issuecomment-1483148358
+          rustup default 1.67.0
+
           cargo binstall cross
           mkdir -p output
 
