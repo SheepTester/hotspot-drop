@@ -22,6 +22,15 @@ jobs:
         run: |
           cargo binstall cross
 
+          // https://github.com/cross-rs/cross-toolchains/issues/38#issuecomment-2211963318
+          // ???
+          git clone https://github.com/cross-rs/cross
+          cd cross
+          git submodule update --init --remote
+          cargo xtask configure-crosstool x86_64-pc-windows-msvc
+          cargo build-docker-image x86_64-pc-windows-msvc-cross --tag local
+          rustup target add x86_64-pc-windows-msvc
+
           mkdir -p output
 
           targets=(
