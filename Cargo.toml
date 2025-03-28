@@ -1,6 +1,6 @@
 [package]
 name = "hotspot-drop"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2024"
 
 [dependencies]
@@ -14,4 +14,4 @@ tokio-util = "0.7.14"
 futures-util = "0.3.31"
 mime_guess = "2.0.5"
 multer = "3.1.0"
-fast_qr = { version = "0.12.7", features = ["svg"] }
+qrcode = "0.14.1"

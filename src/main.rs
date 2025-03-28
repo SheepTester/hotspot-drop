@@ -2,9 +2,6 @@ use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
 
-use fast_qr::QRBuilder;
-use fast_qr::convert::Builder;
-use fast_qr::convert::svg::SvgBuilder;
 use futures_util::{StreamExt, TryStreamExt};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, BodyStream};
@@ -17,6 +14,8 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+use qrcode::QrCode;
+use qrcode::render::svg;
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -173,9 +172,6 @@ async fn handle_request(
                 r#"<li><a href="../"><span class="spacer">Parent folder</span> ../</a></li>{folder_listing}"#
             );
         }
-        let mut svg = SvgBuilder::default();
-        svg.background_color("transparent");
-        svg.module_color("currentColor");
         let qr_codes = if is_root {
             NetworkInterface::show()
                 .unwrap()
@@ -189,10 +185,10 @@ async fn handle_request(
                     }
                 })
                 .map(|url| {
-                    let qrcode = QRBuilder::new(url.as_str()).build().unwrap();
+                    let qrcode = QrCode::new(&url).unwrap();
                     format!(
                         r#"<div class="qr-code">{}<a href="{url}">{url}</a></div>"#,
-                        svg.to_str(&qrcode),
+                        qrcode.render::<svg::Color>().build(),
                     )
                 })
                 .collect::<Vec<_>>()
