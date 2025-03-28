@@ -15,21 +15,17 @@ Prerequisites: For Android, I recommend installing [Termux](https://termux.dev/)
 
     You can use cURL to download the latest binary:
 
-    - **Windows 64-bit**:
-      ```sh
-      https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-x86_64-pc-windows-msvc.exe > hotspot-drop
-      ```
     - **Linux `x86_64`**:
       ```sh
-      https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-x86_64-unknown-linux-gnu > hotspot-drop
+      curl -L "https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-x86_64-unknown-linux-gnu" > hotspot-drop
       ```
     - **Linux `aarch64`**:
       ```sh
-      https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-aarch64-unknown-linux-gnu > hotspot-drop
+      curl -L "https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-aarch64-unknown-linux-gnu" > hotspot-drop
       ```
     - **Android `aarch64`**
       ```sh
-      https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-aarch64-linux-android > hotspot-drop
+      curl -L "https://github.com/SheepTester/hotspot-drop/releases/latest/download/hotspot-drop-aarch64-linux-android" > hotspot-drop
       ```
 
     Then, make it executable:
