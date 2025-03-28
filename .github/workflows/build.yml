@@ -15,13 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: cargo-bins/cargo-binstall@main
+      # - uses: cargo-bins/cargo-binstall@main
       - name: Build
         run: |
-          # https://github.com/cross-rs/cross/issues/1222#issuecomment-1483148358
-          rustup default 1.67.0
-
-          cargo binstall cross
+          # cargo binstall cross
+          # https://github.com/imsnif/bandwhich?tab=readme-ov-file#android
+          cargo install --git https://github.com/cross-rs/cross.git cross
           echo "CROSS VERSION!!"
           cross --version
           mkdir -p output
