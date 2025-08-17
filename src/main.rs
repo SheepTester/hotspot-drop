@@ -15,7 +15,7 @@ use hyper_util::rt::TokioIo;
 use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use qrcode::QrCode;
-use qrcode::render::svg;
+use qrcode::render::{svg, unicode};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -246,7 +246,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for itf in NetworkInterface::show().unwrap().iter() {
         for addr in &itf.addr {
             if let Addr::V4(addr) = addr {
-                println!("http://{}:{PORT}", addr.ip);
+                let url = format!("http://{}:{PORT}", addr.ip);
+                let qrcode = QrCode::new(&url).unwrap();
+                println!("{url}");
+                println!(
+                    "{}",
+                    qrcode
+                        .render::<unicode::Dense1x2>()
+                        .quiet_zone(false)
+                        .build()
+                );
+                println!();
             }
         }
     }
