@@ -2,7 +2,7 @@ use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
 
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{StreamExt, TryStreamExt, stream};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, BodyStream};
 use http_body_util::{Full, StreamBody};
@@ -46,7 +46,6 @@ async fn handle_request(
                 .boxed(),
         )?);
     };
-    println!("R {}", filename.to_str().unwrap_or(""));
     if !filename.starts_with(cwd.clone()) {
         return Ok(Response::builder()
             .status(StatusCode::UNPROCESSABLE_ENTITY)
@@ -107,7 +106,7 @@ async fn handle_request(
                         result
                             .map(|frame| {
                                 frame.into_data().ok().map(|data| {
-                                    bar.set_position(bar.position() + data.len() as u64);
+                                    bar.inc(data.len() as u64);
                                     data
                                 })
                             })
@@ -159,6 +158,7 @@ async fn handle_request(
                         .boxed(),
                 )?);
         }
+        println!("R {}", filename.to_str().unwrap_or(""));
         let mut paths = vec![];
         let mut entries = fs::read_dir(filename.clone()).await?;
         while let Some(entry) = entries.next_entry().await? {
@@ -253,19 +253,45 @@ async fn handle_request(
             }
         }
 
+        println!("R {}", filename.to_str().unwrap_or(""));
         let file = File::open(filename.clone()).await?;
+        let size = file.metadata().await?.len().try_into()?;
+        let bar =
+            ProgressBar::new(size).with_style(ProgressStyle::default_bar().template(BAR_STYLE)?);
         let reader_stream = ReaderStream::new(file);
-        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+        let stream_body = StreamBody::new(
+            reader_stream
+                .map_ok({
+                    let bar = bar.clone();
+                    move |file| {
+                        Frame::data(file).map_data({
+                            let bar = bar.clone();
+                            move |data| {
+                                bar.inc(data.len() as u64);
+                                data
+                            }
+                        })
+                    }
+                })
+                .chain(stream::once({
+                    let bar = bar.clone();
+                    async move {
+                        bar.finish_and_clear();
+                        Ok(Frame::data(Bytes::new()))
+                    }
+                })),
+        );
         let boxed_body = BodyExt::boxed(stream_body);
         Ok(Response::builder()
             .status(StatusCode::OK)
             .header(
-                "Content-Type",
+                CONTENT_TYPE,
                 mime_guess::from_path(filename).first().map_or_else(
                     || String::from("application/octet-stream"),
                     |mime| mime.to_string(),
                 ),
             )
+            .header(CONTENT_LENGTH, size.to_string())
             .body(boxed_body)?)
     }
 }
