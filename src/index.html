@@ -201,6 +201,7 @@
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         font-size: 0.7em;
         text-align: center;
+        gap: 40px;
       }
       .qr-code {
         display: flex;
@@ -209,6 +210,12 @@
       .qr-code svg {
         width: auto;
         height: auto;
+      }
+      .qr-code rect {
+        visibility: hidden;
+      }
+      .qr-code path {
+        fill: currentColor !important;
       }
     </style>
   </head>

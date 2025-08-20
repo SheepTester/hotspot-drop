@@ -220,7 +220,7 @@ async fn handle_request(
                     let qrcode = QrCode::new(&url).unwrap();
                     format!(
                         r#"<div class="qr-code">{}<a href="{url}">{url}</a></div>"#,
-                        qrcode.render::<svg::Color>().build(),
+                        qrcode.render::<svg::Color>().quiet_zone(false).build(),
                     )
                 })
                 .collect::<Vec<_>>()

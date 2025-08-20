@@ -1,3 +1,5 @@
+<img src="./docs/screenshot.png" alt="File listing of a `target/` directory listing 3 files. The user has selected two files and is uploading them." height="300" style="float: right; clear: right;" />
+
 # hotspot-drop
 
 Share files insecurely without an internet connection between devices: one device hosts an HTTP server and a hotspot, and the other device connects to it.
