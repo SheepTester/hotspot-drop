@@ -1,4 +1,4 @@
-<img src="./docs/screenshot.png" alt="File listing of a `target/` directory listing 3 files. The user has selected two files and is uploading them." height="300" style="float: right; clear: right;" />
+<img src="./docs/screenshot.png" alt="File listing of a `target/` directory listing 3 files. The user has selected two files and is uploading them." height="300" align="right" />
 
 # hotspot-drop
 
