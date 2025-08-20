@@ -300,12 +300,15 @@ const PORT: u16 = 6969;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("Hotspot Drop v{}", env!("CARGO_PKG_VERSION"));
+
     let addr = SocketAddr::from(([0, 0, 0, 0], PORT));
     for itf in NetworkInterface::show().unwrap().iter() {
         for addr in &itf.addr {
             if let Addr::V4(addr) = addr {
                 let url = format!("http://{}:{PORT}", addr.ip);
                 let qrcode = QrCode::new(&url).unwrap();
+                println!();
                 println!("{url}");
                 println!(
                     "{}",
@@ -314,7 +317,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         .quiet_zone(false)
                         .build()
                 );
-                println!();
             }
         }
     }
