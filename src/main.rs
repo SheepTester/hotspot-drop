@@ -7,11 +7,12 @@ use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, BodyStream};
 use http_body_util::{Full, StreamBody};
 use hyper::body::{Bytes, Frame};
-use hyper::header::CONTENT_TYPE;
+use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use indicatif::{ProgressBar, ProgressStyle};
 use multer::Multipart;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use qrcode::QrCode;
@@ -27,6 +28,10 @@ fn escape_html(text: &str) -> String {
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
 }
+
+const BAR_STYLE: &str = "[{elapsed_precise}] {msg} {wide_bar:.cyan/blue} {decimal_bytes} / {decimal_total_bytes} ({decimal_bytes_per_sec}) ";
+const SPINNER_STYLE: &str =
+    "[{elapsed_precise}] {spinner} {msg} : {decimal_bytes} ({decimal_bytes_per_sec})";
 
 async fn handle_request(
     req: Request<hyper::body::Incoming>,
@@ -83,10 +88,32 @@ async fn handle_request(
                             .boxed(),
                     )?);
                 };
-                let body_stream =
-                    BodyStream::new(req.into_body()).filter_map(|result| async move {
-                        result.map(|frame| frame.into_data().ok()).transpose()
-                    });
+                let bar = if let Some(length) = req
+                    .headers()
+                    .get(CONTENT_LENGTH)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|length| length.parse().ok())
+                {
+                    ProgressBar::new(length)
+                        .with_style(ProgressStyle::default_bar().template(BAR_STYLE)?)
+                } else {
+                    ProgressBar::new_spinner()
+                        .with_style(ProgressStyle::default_spinner().template(SPINNER_STYLE)?)
+                };
+                let mut output = Vec::new();
+                let body_stream = BodyStream::new(req.into_body()).filter_map(|result| {
+                    let bar = bar.clone();
+                    async move {
+                        result
+                            .map(|frame| {
+                                frame.into_data().ok().map(|data| {
+                                    bar.set_position(bar.position() + data.len() as u64);
+                                    data
+                                })
+                            })
+                            .transpose()
+                    }
+                });
                 let mut multipart = Multipart::new(body_stream, boundary);
                 while let Some(mut field) = multipart.next_field().await? {
                     let Some("file") = field.name() else {
@@ -95,6 +122,7 @@ async fn handle_request(
                     let file_name = field
                         .file_name()
                         .unwrap_or("unnamed file uploaded with hotspot drop");
+                    bar.set_message(String::from(file_name));
                     let path = format!("{}/{file_name}", filename.to_string_lossy());
                     let mut file = File::create(path.clone()).await?;
 
@@ -103,7 +131,11 @@ async fn handle_request(
                         file.write_all(&field_chunk).await?;
                         field_bytes_len += field_chunk.len();
                     }
-                    println!("W {path} ({:?} bytes)", field_bytes_len);
+                    output.push((path, field_bytes_len));
+                }
+                bar.finish_and_clear();
+                for (path, size) in output {
+                    println!("W {path} ({size} bytes)");
                 }
             }
             _ => {
