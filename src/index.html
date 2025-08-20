@@ -8,6 +8,9 @@
 
     <style>
       :root {
+        --sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
+          "Segoe UI Emoji", "Segoe UI Symbol";
         --file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'/%3E%3Cpolyline points='13 2 13 9 20 9'/%3E%3C/svg%3E");
         --folder: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
         --download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E");
@@ -138,9 +141,7 @@
         align-items: center;
         box-sizing: border-box;
         flex: auto;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
-          "Segoe UI Emoji", "Segoe UI Symbol";
+        font-family: var(--sans-serif);
       }
       #file {
         position: absolute;
@@ -190,6 +191,10 @@
         padding: 5px 10px;
         margin: 0;
       }
+      .empty {
+        font-family: var(--sans-serif);
+        font-style: italic;
+      }
 
       .qr-codes {
         display: grid;
@@ -218,8 +223,7 @@
           <input type="file" name="file" id="file" multiple required />
           <span
             >Drop files here or
-            <span class="hover-indicator">click to select</span>.
-            <span id="count">No files</span> selected.</span
+            <span class="hover-indicator">click to select</span>.</span
           >
         </label>
         <button type="submit" aria-label="Upload" title="Upload"></button>
@@ -229,7 +233,6 @@
     <script>
       const form = document.getElementById("form");
       const fieldset = form.querySelector("fieldset");
-      const count = document.getElementById("count");
       const input = document.getElementById("file");
 
       input.addEventListener("dragover", () => {
@@ -245,16 +248,18 @@
         while (form.lastElementChild?.tagName === "P") {
           form.lastElementChild.remove();
         }
-        count.textContent =
-          input.files.length > 1
-            ? `${input.files.length} files`
-            : input.files.length === 1
-            ? "1 file"
-            : "No files";
         for (const file of input.files) {
           form.append(
             Object.assign(document.createElement("p"), {
               textContent: file.name,
+            })
+          );
+        }
+        if (input.files.length === 0) {
+          form.append(
+            Object.assign(document.createElement("p"), {
+              textContent: "No files selected.",
+              className: "empty",
             })
           );
         }
